@@ -146,7 +146,7 @@
     <!-- Sections will be injected here into the column layout -->
     <main id="sections-container" class="pb-8"></main>
 
-    <!-- NEW: Resources section will be injected here -->
+    <!-- Resources section will be injected here -->
     <div id="resources-container"></div>
   </div>
   
@@ -177,6 +177,35 @@ document.addEventListener('DOMContentLoaded', () => {
     errorContainer: document.getElementById('error-container'),
     errorMessage: document.getElementById('error-message'),
   };
+
+  // NEW: Robust function to handle app deep linking with a fallback.
+  window.tryOpenApp = (appUri, fallbackUrl) => {
+    let hasOpened = false;
+    const timeout = 2500;
+
+    const blurListener = () => {
+      hasOpened = true;
+      window.removeEventListener('blur', blurListener);
+    };
+    
+    window.addEventListener('blur', blurListener);
+    
+    // Attempt to open the app URI
+    window.location.href = appUri;
+
+    // Set a timer to check if the app opened
+    setTimeout(() => {
+      window.removeEventListener('blur', blurListener);
+      // If the window never lost focus and the tab is still visible, the app likely didn't open.
+      if (!hasOpened && !document.hidden) {
+        if (fallbackUrl) {
+          // Open the fallback URL in a new tab for better UX.
+          window.open(fallbackUrl, '_blank');
+        }
+      }
+    }, timeout);
+  };
+
 
   const showError = (message) => {
     DOM.loading.classList.add('hidden');
@@ -266,8 +295,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = `<div class="app-icon-container ${containerClass}" ${style}>${iconHTML}</div><span class="app-icon-name">${app.name}</span>`;
         
         if (app.appUri) {
-            // CORRECTED LOGIC: Use preventDefault() to stop the default link action.
-            const onclickHandler = `event.preventDefault(); window.location.href='${app.appUri}'; ${app.fallbackUrl ? `setTimeout(function() { if(!document.hidden) { window.location.href = '${app.fallbackUrl}'; } }, 2500);` : ''}`.replace(/\s*\n\s*/g, ' ');
+            // UPDATED: Call the new, robust tryOpenApp function.
+            const safeAppUri = (app.appUri || '').replace(/'/g, "\\'");
+            const safeFallbackUrl = (app.fallbackUrl || '').replace(/'/g, "\\'");
+            const onclickHandler = `event.preventDefault(); window.tryOpenApp('${safeAppUri}', '${safeFallbackUrl}')`;
             sectionHTML += `<a href="${app.appUri}" onclick="${onclickHandler}" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else if (app.link) {
             let correctedLink = app.link;
