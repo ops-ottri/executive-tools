@@ -237,7 +237,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const apps = sectionData.map(row => {
       if (!row) return null;
-      // Read new columns for deep links: I (appUri) and J (fallbackUrl)
       const [name, graphic, link, bgColor, fullBleed, appUri, fallbackUrl] = [row[3], row[4], row[5], row[6], row[7], row[8], row[9]];
       if (name) return { name, graphic, link, bgColor, fullBleed, appUri, fallbackUrl };
       return null;
@@ -267,18 +266,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = `<div class="app-icon-container ${containerClass}" ${style}>${iconHTML}</div><span class="app-icon-name">${app.name}</span>`;
         
         if (app.appUri) {
-            // If an App URI exists, create the special deep link with a fallback.
-            const fallbackJs = app.fallbackUrl ? `setTimeout(function() { if(!document.hidden) { window.location = '${app.fallbackUrl}'; } }, 2000);` : '';
-            sectionHTML += `<a href="${app.appUri}" onclick="${fallbackJs}" class="app-icon-wrapper app-icon-link group">${content}</a>`;
+            // CORRECTED LOGIC: Use preventDefault() to stop the default link action.
+            const onclickHandler = `event.preventDefault(); window.location.href='${app.appUri}'; ${app.fallbackUrl ? `setTimeout(function() { if(!document.hidden) { window.location.href = '${app.fallbackUrl}'; } }, 2500);` : ''}`.replace(/\s*\n\s*/g, ' ');
+            sectionHTML += `<a href="${app.appUri}" onclick="${onclickHandler}" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else if (app.link) {
-            // Standard web link
             let correctedLink = app.link;
             if (correctedLink && !correctedLink.startsWith('http')) {
                 correctedLink = 'https://' + correctedLink;
             }
             sectionHTML += `<a href="${correctedLink}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else {
-            // Non-clickable icon
             sectionHTML += `<div class="app-icon-wrapper app-icon-link cursor-default">${content}</div>`;
         }
     });
