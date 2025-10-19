@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     SHEET_ID: "13JyMHpkE6oBPVQHtYoIhp6DU0KxU7FQcLKUs7VPZXaU",
     ORDER_TAB_NAME: "Order",
     TITLE_TAB_NAME: "Title",
-    RESOURCES_TAB_NAME: "Section - Resources", // New config for resources
+    RESOURCES_TAB_NAME: "Section - Resources",
   };
 
   const DOM = {
@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
     content: document.getElementById('content-container'),
     header: document.getElementById('header-container'),
     sections: document.getElementById('sections-container'),
-    resources: document.getElementById('resources-container'), // New DOM element
+    resources: document.getElementById('resources-container'),
     errorContainer: document.getElementById('error-container'),
     errorMessage: document.getElementById('error-message'),
   };
@@ -220,16 +220,14 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
       
     DOM.header.innerHTML = `
-        <!-- Mobile Layout: Simple stack -->
         <div class="grid grid-cols-1 gap-4 items-center md:hidden">
             ${logoHTML}
             ${textHTML}
         </div>
-        <!-- Desktop Layout: 3-column grid for perfect centering -->
         <div class="hidden md:grid grid-cols-[1fr_auto_1fr] items-center gap-8">
             ${logoHTML}
             ${textHTML}
-            <div></div> <!-- Right spacer -->
+            <div></div>
         </div>
     `;
   };
@@ -239,8 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const apps = sectionData.map(row => {
       if (!row) return null;
-      const [name, graphic, link, bgColor, fullBleed] = [row[3], row[4], row[5], row[6], row[7]];
-      if (name) return { name, graphic, link, bgColor, fullBleed };
+      // Read new columns for deep links: I (appUri) and J (fallbackUrl)
+      const [name, graphic, link, bgColor, fullBleed, appUri, fallbackUrl] = [row[3], row[4], row[5], row[6], row[7], row[8], row[9]];
+      if (name) return { name, graphic, link, bgColor, fullBleed, appUri, fallbackUrl };
       return null;
     }).filter(Boolean);
 
@@ -267,13 +266,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const containerClass = isFullBleed ? 'app-icon-container--full-bleed' : '';
         const content = `<div class="app-icon-container ${containerClass}" ${style}>${iconHTML}</div><span class="app-icon-name">${app.name}</span>`;
         
-        if (app.link) {
+        if (app.appUri) {
+            // If an App URI exists, create the special deep link with a fallback.
+            const fallbackJs = app.fallbackUrl ? `setTimeout(function() { if(!document.hidden) { window.location = '${app.fallbackUrl}'; } }, 2000);` : '';
+            sectionHTML += `<a href="${app.appUri}" onclick="${fallbackJs}" class="app-icon-wrapper app-icon-link group">${content}</a>`;
+        } else if (app.link) {
+            // Standard web link
             let correctedLink = app.link;
             if (correctedLink && !correctedLink.startsWith('http')) {
                 correctedLink = 'https://' + correctedLink;
             }
             sectionHTML += `<a href="${correctedLink}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else {
+            // Non-clickable icon
             sectionHTML += `<div class="app-icon-wrapper app-icon-link cursor-default">${content}</div>`;
         }
     });
@@ -282,7 +287,6 @@ document.addEventListener('DOMContentLoaded', () => {
     DOM.sections.appendChild(sectionEl);
   };
 
-  // NEW: Function to get file icons for resources
   const getFileIcon = (url) => {
     const iconProps = 'class="w-6 h-6 mr-4 flex-shrink-0"'; 
     if (!url) url = ''; 
@@ -301,7 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20Z" fill="#909090"/></svg>`;
   };
 
-  // NEW: Function to render the resources list
   const renderResources = (title, resourcesData) => {
     if (!resourcesData || resourcesData.length === 0) return;
     const resources = resourcesData.map(row => {
@@ -336,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const init = async () => {
     try {
-      // Fetch and render title and app sections (existing logic)
       const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME).catch(() => []);
       renderHeader(titleData.slice(1));
       
@@ -351,7 +353,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (data) renderSection(sectionOrder[index], data.slice(1));
       });
 
-      // NEW: Fetch and render the resources section
       try {
         const resourcesData = await fetchTab(CONFIG.RESOURCES_TAB_NAME);
         if (resourcesData.length >= 2) {
@@ -375,7 +376,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
-
-
 
