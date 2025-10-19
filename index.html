@@ -178,7 +178,6 @@ document.addEventListener('DOMContentLoaded', () => {
     errorMessage: document.getElementById('error-message'),
   };
 
-  // NEW: Robust function to handle app deep linking with a fallback.
   window.tryOpenApp = (appUri, fallbackUrl) => {
     let hasOpened = false;
     const timeout = 2500;
@@ -189,17 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     window.addEventListener('blur', blurListener);
-    
-    // Attempt to open the app URI
     window.location.href = appUri;
 
-    // Set a timer to check if the app opened
     setTimeout(() => {
       window.removeEventListener('blur', blurListener);
-      // If the window never lost focus and the tab is still visible, the app likely didn't open.
       if (!hasOpened && !document.hidden) {
         if (fallbackUrl) {
-          // Open the fallback URL in a new tab for better UX.
           window.open(fallbackUrl, '_blank');
         }
       }
@@ -295,7 +289,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const content = `<div class="app-icon-container ${containerClass}" ${style}>${iconHTML}</div><span class="app-icon-name">${app.name}</span>`;
         
         if (app.appUri) {
-            // UPDATED: Call the new, robust tryOpenApp function.
             const safeAppUri = (app.appUri || '').replace(/'/g, "\\'");
             const safeFallbackUrl = (app.fallbackUrl || '').replace(/'/g, "\\'");
             const onclickHandler = `event.preventDefault(); window.tryOpenApp('${safeAppUri}', '${safeFallbackUrl}')`;
@@ -347,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="text-left mb-4">
             <h2 class="section-title text-xl font-medium text-gray-300">${title}</h2>
         </div>
-        <div class="space-y-4">`;
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">`; // Changed to a 2-column grid
     resources.forEach(doc => {
       html += `
         <a href="${doc.link}" target="_blank" rel="noopener noreferrer" 
