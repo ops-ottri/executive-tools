@@ -52,6 +52,21 @@
       100% { transform: rotate(360deg); }
     }
     
+    /* Two-Column Layout for Sections */
+    @media (min-width: 768px) { /* md breakpoint */
+      #sections-container {
+        column-count: 2;
+        column-gap: 3rem; /* Equivalent to Tailwind's gap-x-12 */
+      }
+      #sections-container > section {
+        break-inside: avoid; /* Prevents a section from splitting across columns */
+        -webkit-column-break-inside: avoid;
+        page-break-inside: avoid;
+        display: inline-block; /* Fixes potential margin issues in column layouts */
+        width: 100%;
+      }
+    }
+
     /* App Icon Component */
     .app-icon-wrapper {
         display: block;
@@ -118,7 +133,7 @@
     <!-- Header will be injected here -->
     <header id="header-container" class="py-2"></header>
     
-    <!-- Sections will be injected here -->
+    <!-- Sections will be injected here into the column layout -->
     <main id="sections-container"></main>
   </div>
   
@@ -203,74 +218,55 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<div class="flex justify-start relative -top-4"><img src="${logoUrl}" alt="Ottri Logo" class="h-48 w-48 object-contain" onerror="this.style.display='none'"/></div>` 
         : '<div></div>'; // Empty div for grid structure
         
+    // Added relative positioning to move the text block up for better alignment with the logo
     const textHTML = `
-      <div class="text-center">
+      <div class="text-center relative -top-4">
         ${title ? `<h1 class="section-title text-3xl font-bold text-white tracking-tight">${title}</h1>` : ''}
         ${description ? `<p class="mt-2 max-w-3xl mx-auto text-base text-gray-400">${description}</p>` : ''}
       </div>`;
       
-    // Use a 3-column grid. The center column is sized to its content, and the outer
-    // columns take up the remaining space equally, perfectly centering the text.
-    // `items-center` vertically aligns the logo and the text block.
     DOM.header.innerHTML = `
       <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-8 md:gap-12">
         ${logoHTML}
         ${textHTML}
-        <div></div> <!-- This empty div balances the logo, ensuring the text is truly centered -->
+        <div></div> 
       </div>
     `;
   };
 
   /**
-   * Renders a single section with its title, description, and app icons.
+   * Renders a single section and appends it to the DOM.
    * @param {string} sectionName - The name of the section.
    * @param {Array<Array<string|null>>} sectionData - The rows from the section's sheet.
    */
   const renderSection = (sectionName, sectionData) => {
     if (!sectionData || sectionData.length === 0) return;
     
-    // Each row starting from the second in the sheet represents a single app.
     const apps = sectionData.map(row => {
       if (!row) return null;
-      // MAPPING:
-      // D (index 3): Tool Name
-      // E (index 4): Graphic Link
-      // F (index 5): Tool Link
-      const name = row[3];
-      const graphic = row[4];
-      const link = row[5];
-      
-      // An app is only valid if it has a name.
-      if (name) {
-        return { name, graphic, link };
-      }
+      const [name, graphic, link] = [row[3], row[4], row[5]];
+      if (name) return { name, graphic, link };
       return null;
-    }).filter(Boolean); // This removes any null entries from invalid rows.
+    }).filter(Boolean);
 
-    if (apps.length === 0) return; // Don't render empty sections
+    if (apps.length === 0) return;
 
     const sectionEl = document.createElement('section');
-    sectionEl.className = "py-2"; // Reduced padding for compact layout
+    sectionEl.className = "py-2";
 
-    // Clean up the section title from the tab name
     const cleanedTitle = sectionName.replace(/^Section\s*-\s*/i, '').trim();
 
-    // Section titles are smaller and less prominent
     let sectionHTML = `<div class="text-left mb-4">
         <h2 class="section-title text-lg font-medium text-gray-300">${cleanedTitle}</h2>
       </div>
-      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-4 gap-y-6">`;
+      <div class="grid grid-cols-5 gap-x-4 gap-y-6">`;
     
     apps.forEach(app => {
-        const iconSrc = app.graphic; // Only use the direct graphic link from Column E.
-        
-        // Conditionally create the image tag only if a graphic source exists.
+        const iconSrc = app.graphic;
         const iconHTML = iconSrc 
-          ? `<img src="${iconSrc}" alt="${app.name} logo" loading="lazy" class="transition-transform duration-200 group-hover:scale-110" 
-                 onerror="this.style.display='none';" />`
-          : ''; // If no graphic, this will be an empty string.
+          ? `<img src="${iconSrc}" alt="${app.name} logo" loading="lazy" class="transition-transform duration-200 group-hover:scale-110" onerror="this.style.display='none';"/>`
+          : '';
         
-        // Let CSS handle the wrapping, no more <br> tags.
         const content = `
             <div class="app-icon-container">
               ${iconHTML}
@@ -278,7 +274,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="app-icon-name">${app.name}</span>
         `;
         
-        // If there's a link, wrap it in an <a> tag. Otherwise, use a simple <div>.
         if (app.link) {
             sectionHTML += `<a href="${app.link}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else {
@@ -288,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     sectionHTML += `</div>`;
     sectionEl.innerHTML = sectionHTML;
-    DOM.sections.appendChild(sectionEl);
+    DOM.sections.appendChild(sectionEl); // Append directly to the main container
   };
 
   /**
@@ -300,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME);
         renderHeader(titleData.slice(1));
       } catch (e) {
-        console.warn(`Could not load title from '${CONFIG.TITLE_TAB_NAME}' tab. It might be missing or empty.`);
+        console.warn(`Could not load title: ${e.message}`);
         renderHeader([['Ottri Executive Dashboard', 'A central hub for all our tools and resources.']]);
       }
       
@@ -317,13 +312,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const sectionPromises = sectionOrder.map(tabName => 
         fetchTab(tabName).catch(err => {
           console.warn(`Skipping section "${tabName}" due to fetch error:`, err.message);
-          return null; // Return null on error to not break Promise.all
+          return null;
         })
       );
       const allSectionsData = await Promise.all(sectionPromises);
       
+      // The stable render loop
       allSectionsData.forEach((data, index) => {
-        if (data) { // Only render if data was successfully fetched
+        if (data) {
           const sectionName = sectionOrder[index];
           renderSection(sectionName, data.slice(1));
         }
@@ -343,4 +339,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
 
