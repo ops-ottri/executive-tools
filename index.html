@@ -53,16 +53,16 @@
     }
     
     /* Two-Column Layout for Sections */
-    @media (min-width: 768px) { /* md breakpoint */
+    @media (min-width: 1024px) { /* lg breakpoint */
       #sections-container {
         column-count: 2;
         column-gap: 3rem; /* Equivalent to Tailwind's gap-x-12 */
       }
       #sections-container > section {
-        break-inside: avoid; /* Prevents a section from splitting across columns */
+        break-inside: avoid;
         -webkit-column-break-inside: avoid;
         page-break-inside: avoid;
-        display: inline-block; /* Fixes potential margin issues in column layouts */
+        display: inline-block;
         width: 100%;
       }
     }
@@ -76,7 +76,7 @@
       flex-direction: column;
       align-items: center;
       text-decoration: none;
-      color: #d1d5db; /* Lighter text for icon names */
+      color: #d1d5db;
       transition: transform 0.2s ease-in-out, color 0.2s ease-in-out;
       will-change: transform;
     }
@@ -87,9 +87,8 @@
     .app-icon-container {
       width: 72px;
       height: 72px;
-      /* The gradient is now a fallback for when no custom color is set */
       background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
-      border-radius: 22.5%; /* iOS-like rounded square */
+      border-radius: 22.5%;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -107,28 +106,28 @@
       object-fit: contain;
     }
     .app-icon-name {
-      margin-top: 0.5rem; /* 8px */
-      font-size: 0.875rem; /* 14px */
-      line-height: 1.25; /* Tighter line height for two lines */
+      margin-top: 0.5rem;
+      font-size: 0.875rem;
+      line-height: 1.25;
       font-weight: 500;
       text-align: center;
       width: 80px;
-      height: 2.5rem; /* Set fixed height for 2 lines of text */
+      height: auto; /* Allow height to adjust */
+      min-height: 2.5rem; /* Ensure space for two lines */
       display: flex;
-      align-items: flex-start; /* Top-align the text */
+      align-items: flex-start;
       justify-content: center;
-      white-space: normal; /* Allow wrapping */
-      padding-top: 0.125rem; /* Small top padding for alignment */
+      white-space: normal;
+      padding-top: 0.125rem;
     }
 
-    /* NEW: Style for full-bleed icons */
     .app-icon-container--full-bleed {
       padding: 0;
-      background: none; /* No default background */
+      background: none;
     }
     .app-icon-container--full-bleed img {
-      object-fit: cover; /* Make image fill the container */
-      border-radius: 22.5%; /* Round the corners of the image itself */
+      object-fit: cover;
+      border-radius: 22.5%;
     }
   </style>
 </head>
@@ -140,12 +139,15 @@
   </div>
 
   <!-- Main Content Container -->
-  <div id="content-container" class="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 opacity-0 transition-opacity duration-500">
+  <div id="content-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0 transition-opacity duration-500">
     <!-- Header will be injected here -->
     <header id="header-container" class="py-2"></header>
     
     <!-- Sections will be injected here into the column layout -->
-    <main id="sections-container"></main>
+    <main id="sections-container" class="pb-8"></main>
+
+    <!-- NEW: Resources section will be injected here -->
+    <div id="resources-container"></div>
   </div>
   
   <!-- Error Display -->
@@ -161,8 +163,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const CONFIG = {
     SHEET_ID: "13JyMHpkE6oBPVQHtYoIhp6DU0KxU7FQcLKUs7VPZXaU",
-    ORDER_TAB_NAME: "Order", // Tab defining the section order
-    TITLE_TAB_NAME: "Title" // Tab for the main page title and logo
+    ORDER_TAB_NAME: "Order",
+    TITLE_TAB_NAME: "Title",
+    RESOURCES_TAB_NAME: "Section - Resources", // New config for resources
   };
 
   const DOM = {
@@ -170,27 +173,18 @@ document.addEventListener('DOMContentLoaded', () => {
     content: document.getElementById('content-container'),
     header: document.getElementById('header-container'),
     sections: document.getElementById('sections-container'),
+    resources: document.getElementById('resources-container'), // New DOM element
     errorContainer: document.getElementById('error-container'),
     errorMessage: document.getElementById('error-message'),
   };
 
-  /**
-   * Shows an error message overlay.
-   * @param {string} message - The error message to display.
-   */
   const showError = (message) => {
     DOM.loading.classList.add('hidden');
     DOM.errorMessage.textContent = message;
     DOM.errorContainer.classList.remove('hidden');
     DOM.errorContainer.classList.add('flex');
-    console.error("Dashboard Error:", message);
   };
   
-  /**
-   * Fetches and parses data from a specific Google Sheet tab.
-   * @param {string} tabName - The name of the tab to fetch.
-   * @returns {Promise<Array<Array<string|null>>>} A promise that resolves to the parsed rows.
-   */
   const fetchTab = async (tabName) => {
     const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
     try {
@@ -200,61 +194,51 @@ document.addEventListener('DOMContentLoaded', () => {
       const text = await response.text();
       const openParen = text.indexOf('(');
       const closeParen = text.lastIndexOf(')');
-      if (openParen === -1 || closeParen === -1 || closeParen < openParen) {
-        if (text.includes('"status":"ok"')) return [];
-        throw new Error(`Invalid GViz JSONP wrapper for tab: ${tabName}`);
-      }
+      if (openParen === -1 || closeParen === -1) throw new Error(`Invalid response format`);
       
-      const jsonText = text.substring(openParen + 1, closeParen);
-      if (!jsonText) throw new Error(`Empty JSON payload for tab: ${tabName}`);
-
-      const json = JSON.parse(jsonText);
+      const json = JSON.parse(text.substring(openParen + 1, closeParen));
       if (json.status === 'error') throw new Error(json.errors.map(e => e.detailed_message).join(', '));
       return (json.table.rows || []).map(row => (row.c || []).map(cell => cell?.v ?? null));
     } catch (error) {
-      console.warn(`Failed to fetch or parse tab "${tabName}":`, error.message);
+      console.error(`Fetch error for tab "${tabName}":`, error);
       throw error;
     }
   };
 
-  /**
-   * Renders the main page header.
-   * @param {Array<Array<string|null>>} titleData - The rows from the 'Title' sheet.
-   */
   const renderHeader = (titleData) => {
     if (!titleData || titleData.length < 1) return;
     const [title, description, logoUrl] = titleData[0] || [];
 
     const logoHTML = logoUrl 
-        ? `<div class="flex justify-start relative -top-4"><img src="${logoUrl}" alt="Ottri Logo" class="h-48 w-48 object-contain" onerror="this.style.display='none'"/></div>` 
-        : '<div></div>'; // Empty div for grid structure
+        ? `<div class="flex justify-center md:justify-start"><img src="${logoUrl}" alt="Ottri Logo" class="h-40 w-40 object-contain" onerror="this.style.display='none'"/></div>` 
+        : '<div></div>';
         
     const textHTML = `
-      <div class="text-center relative -top-4">
+      <div class="text-center relative md:-top-2">
         ${title ? `<h1 class="section-title text-3xl font-bold text-white tracking-tight">${title}</h1>` : ''}
         ${description ? `<p class="mt-2 max-w-3xl mx-auto text-base text-gray-400">${description}</p>` : ''}
       </div>`;
       
     DOM.header.innerHTML = `
-      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-8 md:gap-12">
-        ${logoHTML}
-        ${textHTML}
-        <div></div> 
-      </div>
+        <!-- Mobile Layout: Simple stack -->
+        <div class="grid grid-cols-1 gap-4 items-center md:hidden">
+            ${logoHTML}
+            ${textHTML}
+        </div>
+        <!-- Desktop Layout: 3-column grid for perfect centering -->
+        <div class="hidden md:grid grid-cols-[1fr_auto_1fr] items-center gap-8">
+            ${logoHTML}
+            ${textHTML}
+            <div></div> <!-- Right spacer -->
+        </div>
     `;
   };
 
-  /**
-   * Renders a single section and appends it to the DOM.
-   * @param {string} sectionName - The name of the section.
-   * @param {Array<Array<string|null>>} sectionData - The rows from the section's sheet.
-   */
   const renderSection = (sectionName, sectionData) => {
     if (!sectionData || sectionData.length === 0) return;
     
     const apps = sectionData.map(row => {
       if (!row) return null;
-      // NEW: Added fullBleed from Column H (index 7)
       const [name, graphic, link, bgColor, fullBleed] = [row[3], row[4], row[5], row[6], row[7]];
       if (name) return { name, graphic, link, bgColor, fullBleed };
       return null;
@@ -263,18 +247,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apps.length === 0) return;
 
     const sectionEl = document.createElement('section');
-    sectionEl.className = "py-2";
+    sectionEl.className = "py-4";
 
     const cleanedTitle = sectionName.replace(/^Section\s*-\s*/i, '').trim();
 
     let sectionHTML = `<div class="text-left mb-4">
-        <h2 class="section-title text-lg font-medium text-gray-300">${cleanedTitle}</h2>
+        <h2 class="section-title text-xl font-medium text-gray-300">${cleanedTitle}</h2>
       </div>
-      <div class="grid grid-cols-6 gap-x-4 gap-y-6">`;
+      <div class="grid grid-cols-4 sm:grid-cols-6 gap-x-4 gap-y-6">`;
     
     apps.forEach(app => {
         const isFullBleed = ['yes', 'true', '1'].includes(String(app.fullBleed).toLowerCase());
-
         const iconSrc = app.graphic;
         const iconHTML = iconSrc 
           ? `<img src="${iconSrc}" alt="${app.name} logo" loading="lazy" class="transition-transform duration-200 group-hover:scale-110" onerror="this.style.display='none';"/>`
@@ -282,16 +265,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const style = app.bgColor && !isFullBleed ? `style="background-color: ${app.bgColor}"` : '';
         const containerClass = isFullBleed ? 'app-icon-container--full-bleed' : '';
-
-        const content = `
-            <div class="app-icon-container ${containerClass}" ${style}>
-              ${iconHTML}
-            </div>
-            <span class="app-icon-name">${app.name}</span>
-        `;
+        const content = `<div class="app-icon-container ${containerClass}" ${style}>${iconHTML}</div><span class="app-icon-name">${app.name}</span>`;
         
         if (app.link) {
-            // FIX: Automatically add "https://" to links that are missing it.
             let correctedLink = app.link;
             if (correctedLink && !correctedLink.startsWith('http')) {
                 correctedLink = 'https://' + correctedLink;
@@ -301,53 +277,93 @@ document.addEventListener('DOMContentLoaded', () => {
             sectionHTML += `<div class="app-icon-wrapper app-icon-link cursor-default">${content}</div>`;
         }
     });
-
     sectionHTML += `</div>`;
     sectionEl.innerHTML = sectionHTML;
     DOM.sections.appendChild(sectionEl);
   };
 
-  /**
-   * Main initialization function.
-   */
+  // NEW: Function to get file icons for resources
+  const getFileIcon = (url) => {
+    const iconProps = 'class="w-6 h-6 mr-4 flex-shrink-0"'; 
+    if (!url) url = ''; 
+    if (url.includes('/spreadsheets/')) {
+      return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM12.9 14.5L15 12.4L16.1 13.5L13.5 16.1L12.4 15L14.5 12.9L12.4 10.8L13.5 9.7L16.1 12.3L17.2 11.2L15 9L12.9 11.1L10.8 9L9.7 10.1L12.3 12.7L9.7 15.3L10.8 16.4L12.9 14.2L15 16.3L16.1 15.2L13.5 12.6L12.9 14.5Z" fill="#34A853"/></svg>`;
+    }
+    if (url.includes('/document/')) {
+      return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM16 13H8V11H16V13ZM16 17H8V15H16V17Z" fill="#4285F4"/></svg>`;
+    }
+    if (url.includes('/presentation/')) {
+        return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM12 12.5H15.5V16H12V12.5ZM8.5 12.5H11.5V14.25H8.5V12.5Z" fill="#F9AB00"/></svg>`;
+    }
+    if (url.toLowerCase().endsWith('.pdf')) {
+      return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20ZM9.5 14.5H11.5V13H8V18H9.5V14.5ZM12.5 18H14.5C15.35 18 16 17.35 16 16.5V14C16 13.15 15.35 12.5 14.5 12.5H12.5V18ZM14 16.5H14.5V14H14V16.5Z" fill="#DB4437"/></svg>`;
+    }
+    return `<svg ${iconProps} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M14 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V8L14 2ZM18 20H6V4H13V9H18V20Z" fill="#909090"/></svg>`;
+  };
+
+  // NEW: Function to render the resources list
+  const renderResources = (title, resourcesData) => {
+    if (!resourcesData || resourcesData.length === 0) return;
+    const resources = resourcesData.map(row => {
+      const name = row[1];
+      const link = row[2];
+      const metaText = row[3];
+      if (name && link) return { name, link, metaText };
+      return null;
+    }).filter(Boolean);
+
+    let html = `
+        <div class="text-left mb-4">
+            <h2 class="section-title text-xl font-medium text-gray-300">${title}</h2>
+        </div>
+        <div class="space-y-4">`;
+    resources.forEach(doc => {
+      html += `
+        <a href="${doc.link}" target="_blank" rel="noopener noreferrer" 
+           class="flex w-full items-center bg-[rgba(255,255,255,0.05)] backdrop-blur-sm px-5 py-3 rounded-2xl border border-white/10 shadow-lg 
+                  hover:border-violet-400/80 hover:bg-[rgba(139,92,246,0.1)] transition-all duration-300 ease-in-out group transform hover:scale-[1.03]">
+          <div class="flex items-center min-w-0">
+            ${getFileIcon(doc.link)}
+            <span class="font-medium text-gray-200 truncate group-hover:text-white transition-colors">${doc.name}</span>
+          </div>
+          <div class="flex-grow"></div>
+          ${doc.metaText ? `<span class="text-sm text-gray-400 ml-4 flex-shrink-0">${doc.metaText}</span>` : ''}
+        </a>`;
+    });
+    html += `</div>`;
+    DOM.resources.innerHTML = html;
+  };
+
   const init = async () => {
     try {
-      try {
-        const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME);
-        renderHeader(titleData.slice(1));
-      } catch (e) {
-        console.warn(`Could not load title from '${CONFIG.TITLE_TAB_NAME}' tab. It might be missing or empty.`);
-        renderHeader([['Ottri Executive Dashboard', 'A central hub for all our tools and resources.']]);
-      }
+      // Fetch and render title and app sections (existing logic)
+      const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME).catch(() => []);
+      renderHeader(titleData.slice(1));
       
       const orderData = await fetchTab(CONFIG.ORDER_TAB_NAME);
-      const sectionOrder = orderData
-          .slice(1)
-          .map(row => row[0])
-          .filter(name => name && !name.startsWith('#'));
-
-      if (sectionOrder.length === 0) {
-        throw new Error(`The '${CONFIG.ORDER_TAB_NAME}' tab is empty or all sections are hidden.`);
-      }
+      const sectionOrder = orderData.slice(1).map(row => row[0]).filter(name => name && !name.startsWith('#'));
+      if (sectionOrder.length === 0) throw new Error(`The '${CONFIG.ORDER_TAB_NAME}' tab is empty or all sections are hidden.`);
       
-      const sectionPromises = sectionOrder.map(tabName => 
-        fetchTab(tabName).catch(err => {
-          console.warn(`Skipping section "${tabName}" due to fetch error:`, err.message);
-          return null; // Return null on error to not break Promise.all
-        })
-      );
+      const sectionPromises = sectionOrder.map(tabName => fetchTab(tabName).catch(() => null));
       const allSectionsData = await Promise.all(sectionPromises);
       
       allSectionsData.forEach((data, index) => {
-        if (data) { // Only render if data was successfully fetched
-          const sectionName = sectionOrder[index];
-          renderSection(sectionName, data.slice(1));
-        }
+        if (data) renderSection(sectionOrder[index], data.slice(1));
       });
+
+      // NEW: Fetch and render the resources section
+      try {
+        const resourcesData = await fetchTab(CONFIG.RESOURCES_TAB_NAME);
+        if (resourcesData.length >= 2) {
+          const sectionTitle = resourcesData[1][0] || "Important Resources";
+          renderResources(sectionTitle, resourcesData.slice(1));
+        }
+      } catch (e) {
+        console.warn(`Could not load resources section: ${e.message}`);
+      }
 
       DOM.loading.classList.add('hidden');
       DOM.content.classList.add('opacity-100');
-
     } catch (error) {
       showError(error.message || "An unknown error occurred while loading data.");
     }
@@ -359,4 +375,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
+
 
