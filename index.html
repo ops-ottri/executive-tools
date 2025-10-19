@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ottri Executive Dashboard</title>
+
+  <!-- Preconnect hints for performance -->
+  <link rel="preconnect" href="https://docs.google.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+
+  <!-- Fonts: Inter (UI) + Lato (Titles) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lato:wght@700;900&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Base & Typography */
+    html {
+      min-height: 100%;
+      color-scheme: dark;
+      background:
+        radial-gradient(1200px 600px at 15% -10%, rgba(76,36,159,0.35) 0%, rgba(76,36,159,0) 45%),
+        radial-gradient(1000px 500px at 85% 0%, rgba(217,70,239,0.20) 0%, rgba(217,70,239,0) 50%),
+        #030014;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    body {
+      font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #e5e7eb; /* A light gray for better readability */
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    .section-title {
+      font-family: "Lato", sans-serif;
+      font-weight: 700;
+    }
+
+    /* Layout & Utilities */
+    .loader {
+      border: 4px solid rgba(255, 255, 255, 0.2);
+      border-top-color: #9378ff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* App Icon Component */
+    .app-icon-wrapper {
+        display: block;
+    }
+    .app-icon-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-decoration: none;
+      color: #d1d5db; /* Lighter text for icon names */
+      transition: transform 0.2s ease-in-out, color 0.2s ease-in-out;
+      will-change: transform;
+    }
+    .app-icon-link:hover {
+      transform: translateY(-4px);
+      color: #ffffff;
+    }
+    .app-icon-container {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+      border-radius: 22.5%; /* iOS-like rounded square */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 4px 6px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.05);
+      transition: box-shadow 0.2s ease-in-out;
+    }
+    .app-icon-link:hover .app-icon-container {
+       box-shadow: 0 8px 15px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05);
+    }
+    .app-icon-container img, .app-icon-container svg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .app-icon-name {
+      margin-top: 0.5rem; /* 8px */
+      font-size: 0.875rem; /* 14px */
+      line-height: 1.25; /* Tighter line height for two lines */
+      font-weight: 500;
+      text-align: center;
+      width: 80px;
+      height: 2.5rem; /* Set fixed height for 2 lines of text */
+      display: flex;
+      align-items: flex-start; /* Top-align the text */
+      justify-content: center;
+      white-space: normal; /* Allow wrapping */
+      padding-top: 0.125rem; /* Small top padding for alignment */
+    }
+  </style>
+</head>
+<body class="antialiased">
+
+  <!-- Loading Indicator -->
+  <div id="loading-indicator" class="fixed inset-0 bg-[#030014] flex items-center justify-center z-50">
+    <div class="loader"></div>
+  </div>
+
+  <!-- Main Content Container -->
+  <div id="content-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0 transition-opacity duration-500">
+    <!-- Header will be injected here -->
+    <header id="header-container" class="py-8"></header>
+    
+    <!-- Sections will be injected here -->
+    <main id="sections-container"></main>
+  </div>
+  
+  <!-- Error Display -->
+  <div id="error-container" class="hidden fixed inset-0 bg-black/70 items-center justify-center p-4 z-50">
+      <div class="bg-red-900/50 border border-red-500 rounded-lg p-6 max-w-md text-center">
+          <h2 class="text-xl font-bold text-red-300">Error Loading Dashboard</h2>
+          <p id="error-message" class="mt-2 text-red-200"></p>
+      </div>
+  </div>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const CONFIG = {
+    SHEET_ID: "13JyMHpkE6oBPVQHtYoIhp6DU0KxU7FQcLKUs7VPZXaU",
+    ORDER_TAB_NAME: "Order", // Tab defining the section order
+    TITLE_TAB_NAME: "Title" // Tab for the main page title and logo
+  };
+
+  const DOM = {
+    loading: document.getElementById('loading-indicator'),
+    content: document.getElementById('content-container'),
+    header: document.getElementById('header-container'),
+    sections: document.getElementById('sections-container'),
+    errorContainer: document.getElementById('error-container'),
+    errorMessage: document.getElementById('error-message'),
+  };
+
+  /**
+   * Shows an error message overlay.
+   * @param {string} message - The error message to display.
+   */
+  const showError = (message) => {
+    DOM.loading.classList.add('hidden');
+    DOM.errorMessage.textContent = message;
+    DOM.errorContainer.classList.remove('hidden');
+    DOM.errorContainer.classList.add('flex');
+    console.error("Dashboard Error:", message);
+  };
+  
+  /**
+   * Fetches and parses data from a specific Google Sheet tab.
+   * @param {string} tabName - The name of the tab to fetch.
+   * @returns {Promise<Array<Array<string|null>>>} A promise that resolves to the parsed rows.
+   */
+  const fetchTab = async (tabName) => {
+    const url = `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:json&sheet=${encodeURIComponent(tabName)}`;
+    try {
+      const response = await fetch(url, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Network response was not ok for tab: ${tabName}`);
+      
+      const text = await response.text();
+      const openParen = text.indexOf('(');
+      const closeParen = text.lastIndexOf(')');
+      if (openParen === -1 || closeParen === -1 || closeParen < openParen) {
+        if (text.includes('"status":"ok"')) return [];
+        throw new Error(`Invalid GViz JSONP wrapper for tab: ${tabName}`);
+      }
+      
+      const jsonText = text.substring(openParen + 1, closeParen);
+      if (!jsonText) throw new Error(`Empty JSON payload for tab: ${tabName}`);
+
+      const json = JSON.parse(jsonText);
+      if (json.status === 'error') throw new Error(json.errors.map(e => e.detailed_message).join(', '));
+      return (json.table.rows || []).map(row => (row.c || []).map(cell => cell?.v ?? null));
+    } catch (error) {
+      console.warn(`Failed to fetch or parse tab "${tabName}":`, error.message);
+      throw error;
+    }
+  };
+
+  /**
+   * Renders the main page header.
+   * @param {Array<Array<string|null>>} titleData - The rows from the 'Title' sheet.
+   */
+  const renderHeader = (titleData) => {
+    if (!titleData || titleData.length < 1) return;
+    const [title, description, logoUrl] = titleData[0] || [];
+
+    const logoHTML = logoUrl 
+        ? `<div class="flex justify-start relative -top-4"><img src="${logoUrl}" alt="Ottri Logo" class="h-48 w-48 object-contain" onerror="this.style.display='none'"/></div>` 
+        : '<div></div>'; // Empty div for grid structure
+        
+    const textHTML = `
+      <div class="text-center">
+        ${title ? `<h1 class="section-title text-3xl font-bold text-white tracking-tight">${title}</h1>` : ''}
+        ${description ? `<p class="mt-2 max-w-3xl mx-auto text-base text-gray-400">${description}</p>` : ''}
+      </div>`;
+      
+    // Use a 3-column grid. The center column is sized to its content, and the outer
+    // columns take up the remaining space equally, perfectly centering the text.
+    // `items-center` vertically aligns the logo and the text block.
+    DOM.header.innerHTML = `
+      <div class="grid grid-cols-[1fr_auto_1fr] items-center gap-8 md:gap-12">
+        ${logoHTML}
+        ${textHTML}
+        <div></div> <!-- This empty div balances the logo, ensuring the text is truly centered -->
+      </div>
+    `;
+  };
+
+  /**
+   * Renders a single section with its title, description, and app icons.
+   * @param {string} sectionName - The name of the section.
+   * @param {Array<Array<string|null>>} sectionData - The rows from the section's sheet.
+   */
+  const renderSection = (sectionName, sectionData) => {
+    if (!sectionData || sectionData.length === 0) return;
+    
+    // Description is in cell B2 of the first data row.
+    const description = sectionData[0] ? sectionData[0][1] : '';
+
+    // Each row starting from the second in the sheet represents a single app.
+    const apps = sectionData.map(row => {
+      if (!row) return null;
+      // MAPPING:
+      // D (index 3): Tool Name
+      // E (index 4): Graphic Link
+      // F (index 5): Tool Link
+      const name = row[3];
+      const graphic = row[4];
+      const link = row[5];
+      
+      // An app is only valid if it has a name.
+      if (name) {
+        return { name, graphic, link };
+      }
+      return null;
+    }).filter(Boolean); // This removes any null entries from invalid rows.
+
+    if (apps.length === 0) return; // Don't render empty sections
+
+    const sectionEl = document.createElement('section');
+    sectionEl.className = "py-8";
+
+    // Clean up the section title from the tab name
+    const cleanedTitle = sectionName.replace(/^Section\s*-\s*/i, '').trim();
+
+    // Section titles are the same size as the page title (text-3xl)
+    let sectionHTML = `<div class="text-left mb-6">
+        <h2 class="section-title text-3xl font-semibold text-white">${cleanedTitle}</h2>
+        ${description ? `<p class="mt-1 text-gray-400">${description}</p>` : ''}
+      </div>
+      <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-4 gap-y-6">`;
+    
+    apps.forEach(app => {
+        const iconSrc = app.graphic; // Only use the direct graphic link from Column E.
+        
+        // Conditionally create the image tag only if a graphic source exists.
+        const iconHTML = iconSrc 
+          ? `<img src="${iconSrc}" alt="${app.name} logo" loading="lazy" class="transition-transform duration-200 group-hover:scale-110" 
+                 onerror="this.style.display='none';" />`
+          : ''; // If no graphic, this will be an empty string.
+        
+        // Let CSS handle the wrapping, no more <br> tags.
+        const content = `
+            <div class="app-icon-container">
+              ${iconHTML}
+            </div>
+            <span class="app-icon-name">${app.name}</span>
+        `;
+        
+        // If there's a link, wrap it in an <a> tag. Otherwise, use a simple <div>.
+        if (app.link) {
+            sectionHTML += `<a href="${app.link}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
+        } else {
+            sectionHTML += `<div class="app-icon-wrapper app-icon-link cursor-default">${content}</div>`;
+        }
+    });
+
+    sectionHTML += `</div>`;
+    sectionEl.innerHTML = sectionHTML;
+    DOM.sections.appendChild(sectionEl);
+  };
+
+  /**
+   * Main initialization function.
+   */
+  const init = async () => {
+    try {
+      try {
+        const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME);
+        renderHeader(titleData.slice(1));
+      } catch (e) {
+        console.warn(`Could not load title from '${CONFIG.TITLE_TAB_NAME}' tab. It might be missing or empty.`);
+        renderHeader([['Ottri Executive Dashboard', 'A central hub for all our tools and resources.']]);
+      }
+      
+      const orderData = await fetchTab(CONFIG.ORDER_TAB_NAME);
+      const sectionOrder = orderData
+          .slice(1)
+          .map(row => row[0])
+          .filter(name => name && !name.startsWith('#'));
+
+      if (sectionOrder.length === 0) {
+        throw new Error(`The '${CONFIG.ORDER_TAB_NAME}' tab is empty or all sections are hidden.`);
+      }
+      
+      const sectionPromises = sectionOrder.map(tabName => 
+        fetchTab(tabName).catch(err => {
+          console.warn(`Skipping section "${tabName}" due to fetch error:`, err.message);
+          return null; // Return null on error to not break Promise.all
+        })
+      );
+      const allSectionsData = await Promise.all(sectionPromises);
+      
+      allSectionsData.forEach((data, index) => {
+        if (data) { // Only render if data was successfully fetched
+          const sectionName = sectionOrder[index];
+          renderSection(sectionName, data.slice(1));
+        }
+      });
+
+      DOM.loading.classList.add('hidden');
+      DOM.content.classList.add('opacity-100');
+
+    } catch (error) {
+      showError(error.message || "An unknown error occurred while loading data.");
+    }
+  };
+
+  init();
+});
+</script>
+
+</body>
+</html>
+
