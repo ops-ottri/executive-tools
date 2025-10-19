@@ -116,7 +116,7 @@
   <!-- Main Content Container -->
   <div id="content-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0 transition-opacity duration-500">
     <!-- Header will be injected here -->
-    <header id="header-container" class="py-8"></header>
+    <header id="header-container" class="pt-6 pb-4"></header>
     
     <!-- Sections will be injected here -->
     <main id="sections-container"></main>
@@ -229,9 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderSection = (sectionName, sectionData) => {
     if (!sectionData || sectionData.length === 0) return;
     
-    // Description is in cell B2 of the first data row.
-    const description = sectionData[0] ? sectionData[0][1] : '';
-
     // Each row starting from the second in the sheet represents a single app.
     const apps = sectionData.map(row => {
       if (!row) return null;
@@ -253,15 +250,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apps.length === 0) return; // Don't render empty sections
 
     const sectionEl = document.createElement('section');
-    sectionEl.className = "py-8";
+    sectionEl.className = "py-4"; // Reduced padding for compact layout
 
     // Clean up the section title from the tab name
     const cleanedTitle = sectionName.replace(/^Section\s*-\s*/i, '').trim();
 
-    // Section titles are the same size as the page title (text-3xl)
-    let sectionHTML = `<div class="text-left mb-6">
-        <h2 class="section-title text-3xl font-semibold text-white">${cleanedTitle}</h2>
-        ${description ? `<p class="mt-1 text-gray-400">${description}</p>` : ''}
+    // Section titles are smaller and less prominent
+    let sectionHTML = `<div class="text-left mb-4">
+        <h2 class="section-title text-lg font-medium text-gray-300">${cleanedTitle}</h2>
       </div>
       <div class="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-x-4 gap-y-6">`;
     
