@@ -140,7 +140,7 @@
   </div>
 
   <!-- Main Content Container -->
-  <div id="content-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0 transition-opacity duration-500">
+  <div id="content-container" class="max-w-7xl mx-auto px-2 sm:px-3 lg:px-4 opacity-0 transition-opacity duration-500">
     <!-- Header will be injected here -->
     <header id="header-container" class="py-2"></header>
     
@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sectionHTML = `<div class="text-left mb-4">
         <h2 class="section-title text-lg font-medium text-gray-300">${cleanedTitle}</h2>
       </div>
-      <div class="grid grid-cols-5 gap-x-4 gap-y-6">`;
+      <div class="grid grid-cols-6 gap-x-4 gap-y-6">`;
     
     apps.forEach(app => {
         const isFullBleed = ['yes', 'true', '1'].includes(String(app.fullBleed).toLowerCase());
@@ -291,7 +291,12 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         if (app.link) {
-            sectionHTML += `<a href="${app.link}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
+            // FIX: Automatically add "https://" to links that are missing it.
+            let correctedLink = app.link;
+            if (correctedLink && !correctedLink.startsWith('http')) {
+                correctedLink = 'https://' + correctedLink;
+            }
+            sectionHTML += `<a href="${correctedLink}" target="_blank" rel="noopener noreferrer" class="app-icon-wrapper app-icon-link group">${content}</a>`;
         } else {
             sectionHTML += `<div class="app-icon-wrapper app-icon-link cursor-default">${content}</div>`;
         }
@@ -311,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const titleData = await fetchTab(CONFIG.TITLE_TAB_NAME);
         renderHeader(titleData.slice(1));
       } catch (e) {
-        console.warn(`Could not load title: ${e.message}`);
+        console.warn(`Could not load title from '${CONFIG.TITLE_TAB_NAME}' tab. It might be missing or empty.`);
         renderHeader([['Ottri Executive Dashboard', 'A central hub for all our tools and resources.']]);
       }
       
@@ -328,13 +333,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const sectionPromises = sectionOrder.map(tabName => 
         fetchTab(tabName).catch(err => {
           console.warn(`Skipping section "${tabName}" due to fetch error:`, err.message);
-          return null;
+          return null; // Return null on error to not break Promise.all
         })
       );
       const allSectionsData = await Promise.all(sectionPromises);
       
       allSectionsData.forEach((data, index) => {
-        if (data) {
+        if (data) { // Only render if data was successfully fetched
           const sectionName = sectionOrder[index];
           renderSection(sectionName, data.slice(1));
         }
