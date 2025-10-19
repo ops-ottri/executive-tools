@@ -87,6 +87,7 @@
     .app-icon-container {
       width: 72px;
       height: 72px;
+      /* The gradient is now a fallback for when no custom color is set */
       background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
       border-radius: 22.5%; /* iOS-like rounded square */
       display: flex;
@@ -118,6 +119,16 @@
       justify-content: center;
       white-space: normal; /* Allow wrapping */
       padding-top: 0.125rem; /* Small top padding for alignment */
+    }
+
+    /* NEW: Style for full-bleed icons */
+    .app-icon-container--full-bleed {
+      padding: 0;
+      background: none; /* No default background */
+    }
+    .app-icon-container--full-bleed img {
+      object-fit: cover; /* Make image fill the container */
+      border-radius: 22.5%; /* Round the corners of the image itself */
     }
   </style>
 </head>
@@ -218,7 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ? `<div class="flex justify-start relative -top-4"><img src="${logoUrl}" alt="Ottri Logo" class="h-48 w-48 object-contain" onerror="this.style.display='none'"/></div>` 
         : '<div></div>'; // Empty div for grid structure
         
-    // Added relative positioning to move the text block up for better alignment with the logo
     const textHTML = `
       <div class="text-center relative -top-4">
         ${title ? `<h1 class="section-title text-3xl font-bold text-white tracking-tight">${title}</h1>` : ''}
@@ -244,8 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const apps = sectionData.map(row => {
       if (!row) return null;
-      const [name, graphic, link] = [row[3], row[4], row[5]];
-      if (name) return { name, graphic, link };
+      // NEW: Added fullBleed from Column H (index 7)
+      const [name, graphic, link, bgColor, fullBleed] = [row[3], row[4], row[5], row[6], row[7]];
+      if (name) return { name, graphic, link, bgColor, fullBleed };
       return null;
     }).filter(Boolean);
 
@@ -262,13 +273,18 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="grid grid-cols-5 gap-x-4 gap-y-6">`;
     
     apps.forEach(app => {
+        const isFullBleed = ['yes', 'true', '1'].includes(String(app.fullBleed).toLowerCase());
+
         const iconSrc = app.graphic;
         const iconHTML = iconSrc 
           ? `<img src="${iconSrc}" alt="${app.name} logo" loading="lazy" class="transition-transform duration-200 group-hover:scale-110" onerror="this.style.display='none';"/>`
           : '';
         
+        const style = app.bgColor && !isFullBleed ? `style="background-color: ${app.bgColor}"` : '';
+        const containerClass = isFullBleed ? 'app-icon-container--full-bleed' : '';
+
         const content = `
-            <div class="app-icon-container">
+            <div class="app-icon-container ${containerClass}" ${style}>
               ${iconHTML}
             </div>
             <span class="app-icon-name">${app.name}</span>
@@ -283,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     sectionHTML += `</div>`;
     sectionEl.innerHTML = sectionHTML;
-    DOM.sections.appendChild(sectionEl); // Append directly to the main container
+    DOM.sections.appendChild(sectionEl);
   };
 
   /**
@@ -317,7 +333,6 @@ document.addEventListener('DOMContentLoaded', () => {
       );
       const allSectionsData = await Promise.all(sectionPromises);
       
-      // The stable render loop
       allSectionsData.forEach((data, index) => {
         if (data) {
           const sectionName = sectionOrder[index];
@@ -339,5 +354,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-
 
