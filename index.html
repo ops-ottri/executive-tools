@@ -116,7 +116,7 @@
   <!-- Main Content Container -->
   <div id="content-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 opacity-0 transition-opacity duration-500">
     <!-- Header will be injected here -->
-    <header id="header-container" class="pt-6 pb-4"></header>
+    <header id="header-container" class="py-2"></header>
     
     <!-- Sections will be injected here -->
     <main id="sections-container"></main>
@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (apps.length === 0) return; // Don't render empty sections
 
     const sectionEl = document.createElement('section');
-    sectionEl.className = "py-4"; // Reduced padding for compact layout
+    sectionEl.className = "py-2"; // Reduced padding for compact layout
 
     // Clean up the section title from the tab name
     const cleanedTitle = sectionName.replace(/^Section\s*-\s*/i, '').trim();
